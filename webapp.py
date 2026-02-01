@@ -57,24 +57,30 @@ def calcular_metricas(projetos):
     por_status = {}
     por_cidade = {}
     valor_total = 0
+    fechado_valor = 0
+    fechados = 0
     
     for p in projetos:
         props = p.get('properties', {})
         status = props.get('Status', {}).get('status', {}).get('name', 'Sem status')
         cidade = props.get('Cidade', {}).get('select', {}).get('name', 'Não informada')
         valor = props.get('Valor', {}).get('number', 0)
+        realizado = props.get('Realizado', {}).get('number', 0)
         
         por_status[status] = por_status.get(status, 0) + 1
         por_cidade[cidade] = por_cidade.get(cidade, 0) + 1
-        valor_total += valor
+        
+        # Se é projeto fechado, usa o valor realizado
+        if status == 'Fechado':
+            fechado_valor += realizado
+            fechado_valor += valor  # mantém valor do campo Valor também
+            fechados += 1
+        else:
+            valor_total += valor
     
     # Calcular meta
     ano_atual = datetime.now().year
     anos_restantes = 2030 - ano_atual
-    
-    # Projetos fechados (ticket médio estimado R$ 500k)
-    fechados = por_status.get('Contratado', 0)
-    fechado_valor = fechados * 500000
     
     return {
         'total': total,
