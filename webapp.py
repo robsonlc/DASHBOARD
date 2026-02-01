@@ -62,28 +62,41 @@ def buscar_meta_financeira():
 
 
 def extrair_valor(props, nome_campo):
-    """Extrai valor de diferentes estruturas de campo do Notion"""
+    """Extrai valor de diferentes estruturas de campo do Notion (inclui rollups de relations)"""
     campo = props.get(nome_campo, {})
     
-    # Estrutura direta
-    if campo.get('number'):
+    # Estrutura direta (number)
+    if campo.get('type') == 'number' and campo.get('number') is not None:
         return campo.get('number', 0)
     
-    # Estrutura rollup
+    # Estrutura rollup (pode ser number ou array)
     rollup = campo.get('rollup', {})
-    if rollup.get('number'):
+    rollup_type = rollup.get('type', '')
+    
+    # Rollup tipo number
+    if rollup_type == 'number' and rollup.get('number') is not None:
         return rollup.get('number', 0)
     
-    # Array de valores (rollup com múltiplos itens)
-    array = rollup.get('array', [])
-    if array:
+    # Rollup tipo array (soma de relação)
+    if rollup_type == 'array':
+        array = rollup.get('array', [])
         total = 0
         for item in array:
-            if item.get('number'):
+            # Cada item pode ter 'number' ou ser outro rollup
+            if item.get('type') == 'number' and item.get('number') is not None:
                 total += item.get('number', 0)
+            elif item.get('type') == 'rollup':
+                inner_rollup = item.get('rollup', {})
+                if inner_rollup.get('type') == 'number' and inner_rollup.get('number') is not None:
+                    total += inner_rollup.get('number', 0)
+            # Tenta extrair de qualquer estrutura
+            item_number = item.get('number')
+            if item_number is not None:
+                total += item_number
         return total
     
-    return 0
+    # Fallback: tenta extrair number de qualquer lugar
+    return campo.get('number', 0)
 
 
 @st.cache_data(ttl=300)
@@ -99,6 +112,17 @@ def calcular_metricas(projetos, meta_financeira):
     
     # Debug: mostrar estrutura dos campos disponíveis
     # st.write("Meta Financeira items:", len(meta_financeira))
+    
+    # Mostrar debug info (remover em produção)
+    with st.expander("🔍 Debug - Estrutura da Meta Financeira"):
+        st.write(f"Total de registros na Meta Financeira: {len(meta_financeira)}")
+        if meta_financeira:
+            # Mostra estrutura do primeiro registro
+            primeiro = meta_financeira[0]
+            st.write("Propriedades disponíveis:", list(primeiro.get('properties', {}).keys()))
+            # Exemplo do campo Realizado
+            real_prop = primeiro.get('properties', {}).get('Realizado', {})
+            st.write("Estrutura do campo Realizado:", real_prop)
     
     # Calcular valor fechado da Meta Financeira
     for m in meta_financeira:
@@ -116,10 +140,6 @@ def calcular_metricas(projetos, meta_financeira):
         if maior_valor > 0:
             fechado_valor += maior_valor
             fechados += 1
-        
-        # Debug
-        # if maior_valor > 0:
-        #     st.write(f"Projeto: {m.get('id')} - Valor: {maior_valor}")
     
     # Contar projetos da esteira
     for p in projetos:
