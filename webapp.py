@@ -115,14 +115,16 @@ def calcular_metricas(projetos, meta_financeira):
     
     # Mostrar debug info (remover em produção)
     with st.expander("🔍 Debug - Estrutura da Meta Financeira"):
-        st.write(f"Total de registros na Meta Financeira: {len(meta_financeira)}")
+        st.write(f"Total de registros: {len(meta_financeira)}")
         if meta_financeira:
-            # Mostra estrutura do primeiro registro
-            primeiro = meta_financeira[0]
-            st.write("Propriedades disponíveis:", list(primeiro.get('properties', {}).keys()))
-            # Exemplo do campo Realizado
-            real_prop = primeiro.get('properties', {}).get('Realizado', {})
-            st.write("Estrutura do campo Realizado:", real_prop)
+            # Mostra todos os registros com seus valores
+            st.write("### Valores extraídos:")
+            for i, m in enumerate(meta_financeira):
+                props = m.get('properties', {})
+                realizado = extrair_valor(props, 'Realizado')
+                valor = extrair_valor(props, 'Valor')
+                potencial = extrair_valor(props, 'Potencial')
+                st.write(f"Registro {i+1}: Realizado={realizado}, Valor={valor}, Potencial={potencial}")
     
     # Calcular valor fechado da Meta Financeira
     for m in meta_financeira:
