@@ -65,17 +65,21 @@ def extrair_valor(props, nome_campo):
     """Extrai valor de diferentes estruturas de campo do Notion (inclui rollups de relations)"""
     campo = props.get(nome_campo, {})
     
-    # Estrutura direta (number)
-    if campo.get('type') == 'number' and campo.get('number') is not None:
-        return campo.get('number', 0)
+    # Estrutura direta (number) - verifica se o valor não é None
+    if campo.get('type') == 'number':
+        valor = campo.get('number')
+        if valor is not None:
+            return valor
     
     # Estrutura rollup (pode ser number ou array)
     rollup = campo.get('rollup', {})
     rollup_type = rollup.get('type', '')
     
     # Rollup tipo number
-    if rollup_type == 'number' and rollup.get('number') is not None:
-        return rollup.get('number', 0)
+    if rollup_type == 'number':
+        valor = rollup.get('number')
+        if valor is not None:
+            return valor
     
     # Rollup tipo array (soma de relação)
     if rollup_type == 'array':
@@ -83,20 +87,24 @@ def extrair_valor(props, nome_campo):
         total = 0
         for item in array:
             # Cada item pode ter 'number' ou ser outro rollup
-            if item.get('type') == 'number' and item.get('number') is not None:
-                total += item.get('number', 0)
+            if item.get('type') == 'number':
+                valor = item.get('number')
+                if valor is not None:
+                    total += valor
             elif item.get('type') == 'rollup':
                 inner_rollup = item.get('rollup', {})
-                if inner_rollup.get('type') == 'number' and inner_rollup.get('number') is not None:
-                    total += inner_rollup.get('number', 0)
-            # Tenta extrair de qualquer estrutura
-            item_number = item.get('number')
-            if item_number is not None:
-                total += item_number
+                if inner_rollup.get('type') == 'number':
+                    valor = inner_rollup.get('number')
+                    if valor is not None:
+                        total += valor
         return total
     
-    # Fallback: tenta extrair number de qualquer lugar
-    return campo.get('number', 0)
+    # Fallback: tenta extrair number direto
+    valor = campo.get('number')
+    if valor is not None:
+        return valor
+    
+    return 0
 
 
 @st.cache_data(ttl=300)
