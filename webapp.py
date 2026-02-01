@@ -107,6 +107,17 @@ def extrair_valor(props, nome_campo):
     return 0
 
 
+def extrair_status(props):
+    """Extrai status do rollup na Meta Financeira"""
+    status_rollup = props.get('Status', {}).get('rollup', {})
+    array = status_rollup.get('array', [])
+    if array:
+        primeiro = array[0]
+        if primeiro.get('type') == 'status':
+            return primeiro.get('status', {}).get('name', 'Sem status')
+    return 'Sem status'
+
+
 @st.cache_data(ttl=300)
 def calcular_metricas(projetos, meta_financeira):
     """Calcula métricas da esteira usando Meta Financeira para valores fechados"""
@@ -134,22 +145,27 @@ def calcular_metricas(projetos, meta_financeira):
                 potencial = extrair_valor(props, 'Potencial')
                 st.write(f"Registro {i+1}: Realizado={realizado}, Valor={valor}, Potencial={potencial}")
     
-    # Calcular valor fechado da Meta Financeira
+    # Calcular valor fechado e potencial da Meta Financeira
+    fechado_valor = 0
+    potencial_valor = 0
+    fechados = 0
+    
     for m in meta_financeira:
         props = m.get('properties', {})
+        status = extrair_status(props)
         
         # Tenta diferentes nomes de campos de valor
         realizado = extrair_valor(props, 'Realizado')
         valor = extrair_valor(props, 'Valor')
-        comissao = extrair_valor(props, 'Comissão')
         potencial = extrair_valor(props, 'Potencial')
         
-        # Usa o maior valor disponível
-        maior_valor = max([realizado, valor, comissao, potencial])
-        
-        if maior_valor > 0:
-            fechado_valor += maior_valor
+        # Se está Contratado e tem Realizado > 0 → é Fechado
+        if status == 'Contratado' and realizado > 0:
+            fechado_valor += realizado
             fechados += 1
+        # Se tem Potencial preenchido → adiciona ao potencial
+        elif potencial > 0:
+            potencial_valor += potencial
     
     # Contar projetos da esteira
     for p in projetos:
@@ -176,6 +192,7 @@ def calcular_metricas(projetos, meta_financeira):
         'valor_total': valor_total,
         'fechados': fechados,
         'fechado_valor': fechado_valor,
+        'potencial_valor': potencial_valor,
         'restante': META_FINANCEIRA - fechado_valor,
         'anos_restantes': anos_restantes,
         'necessario_por_ano': (META_FINANCEIRA - fechado_valor) / max(anos_restantes, 1)
@@ -200,7 +217,7 @@ def main():
         metricas = calcular_metricas(projetos, meta_financeira)
     
     # Linha 1: Métricas principais
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         st.metric(
@@ -211,23 +228,28 @@ def main():
     
     with col2:
         st.metric(
-            "Fechado Estimado",
+            "Fechado",
             f"R$ {metricas['fechado_valor']:,.0f}",
             delta=f"{metricas['fechados']} projetos"
         )
     
     with col3:
         st.metric(
-            "Restante",
-            f"R$ {metricas['restante']:,.0f}",
-            delta=f"{metricas['anos_restantes']} anos"
+            "Potencial Estimado",
+            f"R$ {metricas['potencial_valor']:,.0f}",
+            delta="Projetos avançados"
         )
+    
+    st.markdown("---")
+    
+    # Linha 2: Restante
+    col4, col5 = st.columns(2)
     
     with col4:
         st.metric(
-            "Necessário/Ano",
-            f"R$ {metricas['necessario_por_ano']:,.0f}",
-            delta="~35 fechamentos"
+            "Restante",
+            f"R$ {metricas['restante']:,.0f}",
+            delta=f"Meta 2030 - {metricas['anos_restantes']} anos"
         )
     
     st.markdown("---")
