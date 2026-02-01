@@ -61,6 +61,31 @@ def buscar_meta_financeira():
     return r.json().get('results', [])
 
 
+def extrair_valor(props, nome_campo):
+    """Extrai valor de diferentes estruturas de campo do Notion"""
+    campo = props.get(nome_campo, {})
+    
+    # Estrutura direta
+    if campo.get('number'):
+        return campo.get('number', 0)
+    
+    # Estrutura rollup
+    rollup = campo.get('rollup', {})
+    if rollup.get('number'):
+        return rollup.get('number', 0)
+    
+    # Array de valores (rollup com múltiplos itens)
+    array = rollup.get('array', [])
+    if array:
+        total = 0
+        for item in array:
+            if item.get('number'):
+                total += item.get('number', 0)
+        return total
+    
+    return 0
+
+
 @st.cache_data(ttl=300)
 def calcular_metricas(projetos, meta_financeira):
     """Calcula métricas da esteira usando Meta Financeira para valores fechados"""
@@ -72,19 +97,29 @@ def calcular_metricas(projetos, meta_financeira):
     fechado_valor = 0
     fechados = 0
     
+    # Debug: mostrar estrutura dos campos disponíveis
+    # st.write("Meta Financeira items:", len(meta_financeira))
+    
     # Calcular valor fechado da Meta Financeira
     for m in meta_financeira:
         props = m.get('properties', {})
-        # Tenta diferentes campos de valor
-        realizado = props.get('Realizado', {}).get('number', 0)
-        valor_rollup = props.get('Valor', {}).get('rollup', {}).get('number', 0)
-        valor = props.get('Valor', {}).get('number', 0)
+        
+        # Tenta diferentes nomes de campos de valor
+        realizado = extrair_valor(props, 'Realizado')
+        valor = extrair_valor(props, 'Valor')
+        comissao = extrair_valor(props, 'Comissão')
+        potencial = extrair_valor(props, 'Potencial')
         
         # Usa o maior valor disponível
-        maior_valor = max([realizado, valor_rollup, valor])
-        fechado_valor += maior_valor
-        fechado_valor += valor
-        fechados += 1
+        maior_valor = max([realizado, valor, comissao, potencial])
+        
+        if maior_valor > 0:
+            fechado_valor += maior_valor
+            fechados += 1
+        
+        # Debug
+        # if maior_valor > 0:
+        #     st.write(f"Projeto: {m.get('id')} - Valor: {maior_valor}")
     
     # Contar projetos da esteira
     for p in projetos:
