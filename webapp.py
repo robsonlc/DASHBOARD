@@ -50,8 +50,20 @@ def buscar_projetos():
 
 
 @st.cache_data(ttl=300)
-def calcular_metricas(projetos):
-    """Calcula métricas da esteira"""
+def buscar_meta_financeira():
+    """Busca valores da Meta Financeira (projetos fechados via rollup)"""
+    r = requests.post(
+        'https://api.notion.com/v1/databases/2f16d0373889807ba8c8db65ded46e57/query',
+        headers=HEADERS,
+        json={'page_size': 100},
+        timeout=20
+    )
+    return r.json().get('results', [])
+
+
+@st.cache_data(ttl=300)
+def calcular_metricas(projetos, meta_financeira):
+    """Calcula métricas da esteira usando Meta Financeira para valores fechados"""
     total = len(projetos)
     
     por_status = {}
@@ -60,22 +72,32 @@ def calcular_metricas(projetos):
     fechado_valor = 0
     fechados = 0
     
+    # Calcular valor fechado da Meta Financeira
+    for m in meta_financeira:
+        props = m.get('properties', {})
+        # Tenta diferentes campos de valor
+        realizado = props.get('Realizado', {}).get('number', 0)
+        valor_rollup = props.get('Valor', {}).get('rollup', {}).get('number', 0)
+        valor = props.get('Valor', {}).get('number', 0)
+        
+        # Usa o maior valor disponível
+        maior_valor = max([realizado, valor_rollup, valor])
+        fechado_valor += maior_valor
+        fechado_valor += valor
+        fechados += 1
+    
+    # Contar projetos da esteira
     for p in projetos:
         props = p.get('properties', {})
         status = props.get('Status', {}).get('status', {}).get('name', 'Sem status')
         cidade = props.get('Cidade', {}).get('select', {}).get('name', 'Não informada')
         valor = props.get('Valor', {}).get('number', 0)
-        realizado = props.get('Realizado', {}).get('number', 0)
         
         por_status[status] = por_status.get(status, 0) + 1
         por_cidade[cidade] = por_cidade.get(cidade, 0) + 1
         
-        # Se é projeto fechado (Contratado), usa o valor realizado
-        if status == 'Contratado':
-            fechado_valor += realizado
-            fechado_valor += valor  # mantém valor do campo Valor também
-            fechados += 1
-        else:
+        # Não soma valor aqui, pois vem da Meta Financeira
+        if status != 'Contratado':
             valor_total += valor
     
     # Calcular meta
@@ -109,7 +131,8 @@ def main():
     # Buscar dados
     with st.spinner('Carregando dados do Notion...'):
         projetos = buscar_projetos()
-        metricas = calcular_metricas(projetos)
+        meta_financeira = buscar_meta_financeira()
+        metricas = calcular_metricas(projetos, meta_financeira)
     
     # Linha 1: Métricas principais
     col1, col2, col3, col4 = st.columns(4)
