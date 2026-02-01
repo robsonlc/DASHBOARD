@@ -19,8 +19,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Configurações
-NOTION_TOKEN = "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"
+# Configurações (usa secrets: NOTION_TOKEN no Streamlit Cloud ou .streamlit/secrets.toml localmente)
+try:
+    NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
+except:
+    # Fallback local - crie um arquivo .streamlit/secrets.toml com NOTION_TOKEN = "seu-token"
+    NOTION_TOKEN = ""
+    st.warning("⚠️ Token do Notion não encontrado. Configure os secrets para rodar.")
+
 NOTION_VERSION = "2022-06-28"
 META_FINANCEIRA = 20000000
 
