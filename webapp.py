@@ -70,8 +70,8 @@ def calcular_metricas(projetos):
         por_status[status] = por_status.get(status, 0) + 1
         por_cidade[cidade] = por_cidade.get(cidade, 0) + 1
         
-        # Se é projeto fechado, usa o valor realizado
-        if status == 'Fechado':
+        # Se é projeto fechado (Contratado), usa o valor realizado
+        if status == 'Contratado':
             fechado_valor += realizado
             fechado_valor += valor  # mantém valor do campo Valor também
             fechados += 1
