@@ -1,6 +1,6 @@
 """
 Web App para Gestão de Negócios Imobiliários
-Dashboard da Meta 2030 - Robson Imóveis
+Dashboard da Meta 2030 - Engesud Smart
 
 Uso: python webapp.py
 Acesso: http://localhost:8501
@@ -13,8 +13,8 @@ import json
 
 # Configuração da página
 st.set_page_config(
-    page_title="Robson Imóveis - Meta 2030",
-    page_icon="🏠",
+    page_title="Engesud Smart - Dashboard 2030",
+    page_icon="🏢",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -92,8 +92,12 @@ def calcular_metricas(projetos):
 def main():
     """Página principal"""
     
-    # Título
-    st.title("🏠 Robson Imóveis - Dashboard 2030")
+    # Título com logo
+    col_logo, col_title = st.columns([1, 4])
+    with col_logo:
+        st.image("https://i.imgur.com/3YKn2xW.png", width=120)
+    with col_title:
+        st.title("🏢 Engesud Smart - Dashboard 2030")
     st.markdown("---")
     
     # Buscar dados
